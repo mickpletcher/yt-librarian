@@ -61,6 +61,22 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# YouTube Knowledge Manager local/private state
+.env
+data/*
+!data/.gitkeep
+config/categories.yaml
+config/rules.yaml
+*.sqlite
+*.sqlite3
+*.db
+browser-profile/
+playwright-report/
+test-results/
+transcripts/
+cookies*.json
+storage-state*.json
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -216,3 +232,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local-only project planning
+/future-upgrades.md

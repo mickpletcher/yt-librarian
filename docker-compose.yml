@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      YKM_DATABASE_URL: sqlite:////app/data/youtube_knowledge_manager.sqlite3
+      YKM_DRY_RUN: "true"
+      YKM_HEADLESS: "true"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    command: ["streamlit", "run", "src/youtube_knowledge_manager/ui/app.py", "--server.address=0.0.0.0"]

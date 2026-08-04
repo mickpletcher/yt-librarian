@@ -1,0 +1,25 @@
+categories:
+  - name: Software Engineering
+    slug: software-engineering
+    description: Programming, architecture, developer tools, and engineering practices.
+    youtube_playlist_name: Knowledge - Software Engineering
+  - name: AI and Automation
+    slug: ai-automation
+    description: AI systems, RPA, scripting, and workflow automation.
+    youtube_playlist_name: Knowledge - AI and Automation
+  - name: Fitness
+    slug: fitness
+    description: Strength, endurance, cycling, and triathlon training.
+    youtube_playlist_name: Knowledge - Fitness
+  - name: Home and Fabrication
+    slug: home-fabrication
+    description: Construction, welding, fabrication, solar, and off-grid systems.
+    youtube_playlist_name: Knowledge - Home and Fabrication
+  - name: Finance
+    slug: finance
+    description: Investing, taxes, and retirement planning.
+    youtube_playlist_name: Knowledge - Finance
+  - name: Travel
+    slug: travel
+    description: Destinations, logistics, and travel planning.
+    youtube_playlist_name: Knowledge - Travel

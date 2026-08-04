@@ -1,0 +1,37 @@
+rules:
+  - name: powershell-and-endpoint-management
+    priority: 100
+    enabled: true
+    any_keywords: [powershell, intune, configmgr, sccm, azure ad, entra]
+    categories: [software-engineering, ai-automation]
+    confidence: 0.95
+  - name: ai-and-rpa
+    priority: 90
+    enabled: true
+    any_keywords: [artificial intelligence, machine learning, llm, openai, automation, rpa]
+    categories: [ai-automation]
+    confidence: 0.90
+  - name: fitness-training
+    priority: 80
+    enabled: true
+    any_keywords: [strength training, cycling, triathlon, pull-up, endurance, workout]
+    categories: [fitness]
+    confidence: 0.90
+  - name: fabrication-and-off-grid
+    priority: 80
+    enabled: true
+    any_keywords: [welding, shipping container, fabrication, solar, off-grid]
+    categories: [home-fabrication]
+    confidence: 0.90
+  - name: retirement-and-investing
+    priority: 70
+    enabled: true
+    any_keywords: [retirement, investing, portfolio, 401k, roth ira]
+    categories: [finance]
+    confidence: 0.88
+  - name: travel
+    priority: 60
+    enabled: true
+    any_keywords: [travel guide, itinerary, things to do, where to stay]
+    categories: [travel]
+    confidence: 0.85
