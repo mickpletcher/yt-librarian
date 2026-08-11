@@ -26,7 +26,7 @@ See [completed-upgrades.md](completed-upgrades.md) for the permanent record of s
 - Discovers every saved YouTube playlist, including Liked Videos and Watch Later.
 - Crawls each discovered playlist and stores its current video memberships and positions.
 - Preserves membership history by marking missing observations inactive instead of deleting them.
-- Extracts visible video IDs, titles, channels, thumbnails, durations, URLs, and playlist positions.
+- Extracts visible video IDs, titles, channels, thumbnails, durations, URLs, and contiguous positions across verified playlist members.
 - Stores each discovered video immediately when write mode is enabled.
 - Uses content fingerprints to detect new or changed videos.
 - Classifies videos with deterministic YAML rules.
@@ -43,7 +43,7 @@ See [completed-upgrades.md](completed-upgrades.md) for the permanent record of s
 - Records synchronization runs, classification evidence, action attempts, failures, and completion state.
 - Rejects incomplete playlist crawls for membership deactivation.
 - Enriches metadata and transcripts with durable retry state.
-- Prevents concurrent writers with an explicit application lock.
+- Prevents concurrent writers with an explicit application lock whose owner metadata requests owner-only file permissions.
 - Verifies SQLite integrity, backup, and restore operations.
 - Produces a counts-only private-data inventory.
 

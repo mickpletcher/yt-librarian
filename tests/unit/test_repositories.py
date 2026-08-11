@@ -53,6 +53,7 @@ def test_playlist_membership_upsert_and_deactivation(db_session: Session) -> Non
     )
 
     assert playlist_result.created is True
+    assert playlists.count() == 1
     assert created is True
     assert created_again is False
     assert membership.position == 2

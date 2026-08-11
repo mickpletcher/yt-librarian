@@ -210,6 +210,9 @@ class PlaylistRepository:
             )
         )
 
+    def count(self) -> int:
+        return self.session.scalar(select(func.count(YouTubePlaylist.id))) or 0
+
     def upsert(self, data: PlaylistUpsert) -> PlaylistUpsertResult:
         now = utc_now()
         playlist = self.get_by_youtube_id(data.youtube_playlist_id)

@@ -27,7 +27,7 @@ The product now discovers every saved playlist shown by YouTube and can inventor
 
 The largest remaining gap is account-specific reconciliation. A current read-only Liked Videos crawl collected 3,053 visible entries against a 3,142-video header that reported unavailable videos hidden. A complete saved-library read-only run discovered 85 playlists, observed 4,644 memberships and 3,497 unique videos, and isolated 19 playlist count mismatches. YouTube also intermittently returned only four playlist cards with no continuation. An exact expected-count guard now prevents that partial result from entering a full write, and a live write rehearsal proved it stopped before playlist processing. A repeatable full local import and one explicitly approved disposable-playlist add remain incomplete. Localization, experiments, private playlists, transcript availability, and security prompts remain external risks.
 
-The local quality baseline is production-grade for this single-user tool. Ruff, strict mypy, 72 non-live tests, a 75% coverage floor, Bandit, frozen dependency auditing, migration round trips, CLI tests, Streamlit smoke tests, and tracked-private-file checks pass. Mocked tests cover the critical browser and recovery branches. Live YouTube behavior still requires controlled operator validation because it cannot be proven by CI.
+The local quality baseline is production-grade for this single-user tool. Ruff, strict mypy, 73 non-live tests, a 75% coverage floor, Bandit, frozen dependency auditing, migration round trips, CLI tests, Streamlit smoke tests, and tracked-private-file checks pass. Mocked tests cover the critical browser and recovery branches. Live YouTube behavior still requires controlled operator validation because it cannot be proven by CI.
 
 Upgrade tracking now has a permanent tracked completion ledger and a local-only future backlog. The local backlog contains actionable ideas derived from this assessment. When an item ships, its stable ID and actual verification evidence move to `completed-upgrades.md`; it must not remain in both ledgers.
 
@@ -41,7 +41,7 @@ The following checks passed on Windows with Python 3.12.13:
 | Ruff lint | Passed |
 | Ruff format check | Passed |
 | Strict mypy | Passed across 62 source files |
-| Pytest | 72 passed, live YouTube tests excluded; 77.62% coverage against a 75% floor |
+| Pytest | 73 passed, live YouTube tests excluded; 77.63% coverage against a 75% floor |
 | Security lint | Bandit passed across `src` |
 | Dependency audit | Frozen fully locked graph reports no known vulnerabilities |
 | Alembic migrations | Upgrade and downgrade passed against a temporary SQLite database; `YKM_DATABASE_URL` targeting has regression coverage |
@@ -83,7 +83,7 @@ uv run ykm --help
 | --- | --- | --- |
 | `browser` | Persistent profile, safety detection, selectors, crawling, details, transcripts, playlist interaction | Strong fail-closed boundary with mocked coverage. Live DOM volatility remains external. |
 | `collection` | Fingerprints, immediate video and membership persistence, enrichment, synchronization run tracking | Durable checkpoints, incomplete-crawl preservation, retry state, progress, and cancellation are present. |
-| `db` | SQLAlchemy models, sessions, repositories, normalized video and playlist persistence | Strong single-user design with locking, integrity, backup, restore, and migrations. |
+| `db` | SQLAlchemy models, sessions, repositories, normalized video and playlist persistence | Strong single-user design with owner-restricted locking, efficient dashboard counts, integrity, backup, restore, and migrations. |
 | `classification` | YAML schemas, deterministic rules, AI provider contract, provider adapters, result validation | Bounded provider calls, budget enforcement, cost recording, and failure isolation are present. Rule versioning remains future work. |
 | `planning` | Durable, idempotent playlist proposals and controlled execution | Strong safety model with ID-aware resolution, dry validation, inventory recheck, and recovery. Live add remains a gate. |
 | `search` | Text search, category filtering, local summaries, semantic-search boundary | Suitable alpha implementation. LIKE queries will eventually need FTS5. |
@@ -193,7 +193,7 @@ Remaining controls to add before broader use:
 
 ## Test assessment
 
-The current 72-test suite verifies pure logic, persistence, playlist and membership upserts, complete versus incomplete deactivation, expected library-count enforcement, interrupted run recovery, optimization, planning idempotency and inventory suppression, review rejection, transcript retry state, database recovery, locks, CLI boundaries, Streamlit startup, migrations, environment-targeted Alembic execution, AI preview and zero-budget enforcement, scrolling, URL normalization, hydration retry, continuation discovery, recommendation exclusion, fail-closed security handling, playlist dialog resolution, and browser process boundaries. Coverage is 77.62% against a 75% floor.
+The current 73-test suite verifies pure logic, persistence, playlist and membership upserts, complete versus incomplete deactivation, expected library-count enforcement, interrupted run recovery, optimization, planning idempotency and inventory suppression, review rejection, transcript retry state, database recovery, owner-restricted locks, CLI boundaries, Streamlit startup, migrations, environment-targeted Alembic execution, AI preview and zero-budget enforcement, contiguous playlist positions, scrolling, URL normalization, hydration retry, continuation discovery, recommendation exclusion, fail-closed security handling, playlist dialog resolution, and browser process boundaries. Coverage is 77.63% against a 75% floor.
 
 Important remaining tests:
 
@@ -214,7 +214,7 @@ Important remaining tests:
 | Review UI | 4/5 | Required decisions, rejection recovery, progress, and library optimization are available. Bulk review remains future work. |
 | Search | 3/5 | Good basic local search. FTS and semantic indexing remain. |
 | Privacy and safety | 5/5 | Strong defaults, exclusions, lock discipline, private-file CI, counts-only inventory, and verified private backups are present. |
-| Automated tests | 5/5 | 72 tests pass with 77.62% coverage, strict typing, security lint, dependency audit, migration checks, and mocked critical browser paths. |
+| Automated tests | 5/5 | 73 tests pass with 77.63% coverage, strict typing, security lint, dependency audit, migration checks, and mocked critical browser paths. |
 | Documentation | 5/5 | Detailed setup, first-run, routine use, configuration, CLI, UI, safety, troubleshooting, development, changelog, and assessment guidance are present. |
 | Overall production readiness | 4/5 | Production-candidate code. Playlist mismatches, a repeatable full local import, representative Liked Videos reconciliation, and one explicitly approved disposable-playlist add are mandatory before 5/5. |
 

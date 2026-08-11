@@ -169,12 +169,15 @@ class PlaylistVideosCollector:
                     "duration": Selectors.DURATION,
                 },
             )
-            for index, raw_item in enumerate(raw_items):
-                if not video_href_matches_playlist(
+            member_items = [
+                raw_item
+                for raw_item in raw_items
+                if video_href_matches_playlist(
                     _string_value(raw_item, "href"), self.youtube_playlist_id
-                ):
-                    continue
-                video = collected_video_from_raw_item(raw_item, index + 1)
+                )
+            ]
+            for position, raw_item in enumerate(member_items, start=1):
+                video = collected_video_from_raw_item(raw_item, position)
                 if video is not None:
                     is_new = video.youtube_video_id not in collected
                     collected[video.youtube_video_id] = video

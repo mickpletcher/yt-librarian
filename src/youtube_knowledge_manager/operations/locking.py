@@ -49,7 +49,7 @@ class ApplicationLock:
     def __enter__(self) -> ApplicationLock:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         except FileExistsError as exc:
             owner = read_lock_owner(self.path)
             detail = (

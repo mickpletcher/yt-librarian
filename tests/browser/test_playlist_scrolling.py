@@ -131,3 +131,4 @@ async def test_recommendation_links_are_excluded_from_playlist_membership() -> N
 
     assert result.complete is True
     assert [video.youtube_video_id for video in result.videos] == ["member"]
+    assert [video.position for video in result.videos] == [1]

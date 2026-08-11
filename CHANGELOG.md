@@ -34,6 +34,8 @@ Every repository change is recorded in this file. Entries describe behavior, cod
 
 ### Changed
 
+- Changed collected playlist positions to count only verified membership rows, preventing recommendation elements from creating position gaps.
+- Changed lock-file creation to request owner-only permissions and changed dashboard playlist totals to use a direct count query.
 - Changed AI budgeting so a zero daily limit disables provider calls and preview classification is deterministic-only, preventing unrecorded provider usage from bypassing the daily ceiling.
 - Corrected playlist target documentation to require an exposed matching ID whenever an ID is configured; exact-name matching is used only when no ID is configured.
 - Changed raw Alembic execution to honor `YKM_DATABASE_URL`, ensuring CI and operator migration checks target the configured database, and made CI dependency installation frozen.

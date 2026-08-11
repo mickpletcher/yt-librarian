@@ -36,7 +36,7 @@ class VideoService:
         latest = self.sync_runs.latest()
         return DashboardSummary(
             total_videos=self.videos.count(),
-            total_playlists=len(self.playlists.list_inventory()),
+            total_playlists=self.playlists.count(),
             review_items=len(self.classifications.list_review_queue(limit=10_000)),
             pending_actions=len(self.actions.list_pending(limit=10_000)),
             last_sync_status=latest.status.value if latest else None,

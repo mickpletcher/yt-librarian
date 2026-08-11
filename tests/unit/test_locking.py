@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -29,6 +31,21 @@ def test_application_lock_is_exclusive_and_releases(tmp_path: Path) -> None:
                 pass
 
     assert not lock_path.exists()
+
+
+def test_application_lock_requests_owner_only_permissions(tmp_path: Path) -> None:
+    database_url = _database_url(tmp_path / "app.sqlite3")
+    lock_path = lock_path_for_database(database_url)
+
+    with patch("youtube_knowledge_manager.operations.locking.os.open", wraps=os.open) as open_file:
+        with ApplicationLock(database_url, operation="test"):
+            pass
+
+    open_file.assert_called_once_with(
+        lock_path,
+        os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+        0o600,
+    )
 
 
 def test_stale_lock_removal_requires_force(tmp_path: Path) -> None:
