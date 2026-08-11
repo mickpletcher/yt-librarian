@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -26,14 +28,24 @@ class SynchronizationService:
         self.runs = SyncRunRepository(session)
         self.log = get_logger(component="synchronization")
 
-    async def run(self, *, dry_run: bool) -> SyncSummary:
+    async def run(
+        self,
+        *,
+        dry_run: bool,
+        progress: Callable[[CrawlSummary], None] | None = None,
+    ) -> SyncSummary:
         run = None
         if not dry_run:
+            self.runs.recover_interrupted(operation="liked_videos")
             run = self.runs.start(dry_run=False)
             self.session.commit()
         try:
             async with BrowserSession(self.settings) as browser:
-                crawl: CrawlSummary = await Crawler(self.session, dry_run=dry_run).run(browser)
+                crawl: CrawlSummary = await Crawler(
+                    self.session,
+                    dry_run=dry_run,
+                    progress=progress,
+                ).run(browser)
             if run is not None:
                 run.videos_seen = crawl.seen
                 run.videos_created = crawl.created
@@ -53,6 +65,11 @@ class SynchronizationService:
                 changed=crawl.changed,
                 dry_run=dry_run,
             )
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            if run is not None:
+                self.runs.finish(run, failed=True, error="Synchronization interrupted")
+                self.session.commit()
+            raise
         except Exception as exc:
             if run is not None:
                 self.runs.finish(run, failed=True, error=str(exc))

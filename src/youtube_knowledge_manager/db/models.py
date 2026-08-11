@@ -104,6 +104,48 @@ class Video(TimestampMixin, Base):
         back_populates="video", cascade="all, delete-orphan"
     )
     classification_runs: Mapped[list[ClassificationRun]] = relationship(back_populates="video")
+    playlist_memberships: Mapped[list[PlaylistMembership]] = relationship(
+        back_populates="video", cascade="all, delete-orphan"
+    )
+
+
+class YouTubePlaylist(TimestampMixin, Base):
+    __tablename__ = "youtube_playlists"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    youtube_playlist_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    canonical_url: Mapped[str] = mapped_column(String(512))
+    system_kind: Mapped[str | None] = mapped_column(String(32), index=True)
+    reported_video_count: Mapped[int | None] = mapped_column(Integer)
+    first_discovered_at: Mapped[datetime] = mapped_column(default=utc_now)
+    last_observed_at: Mapped[datetime] = mapped_column(default=utc_now, index=True)
+    raw_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    memberships: Mapped[list[PlaylistMembership]] = relationship(
+        back_populates="playlist", cascade="all, delete-orphan"
+    )
+
+
+class PlaylistMembership(TimestampMixin, Base):
+    __tablename__ = "playlist_memberships"
+    __table_args__ = (
+        UniqueConstraint("playlist_id", "video_id"),
+        Index("ix_playlist_memberships_playlist_active", "playlist_id", "active"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    playlist_id: Mapped[int] = mapped_column(
+        ForeignKey("youtube_playlists.id", ondelete="CASCADE"), index=True
+    )
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int | None] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    first_discovered_at: Mapped[datetime] = mapped_column(default=utc_now)
+    last_observed_at: Mapped[datetime] = mapped_column(default=utc_now, index=True)
+
+    playlist: Mapped[YouTubePlaylist] = relationship(back_populates="memberships")
+    video: Mapped[Video] = relationship(back_populates="playlist_memberships")
 
 
 class Transcript(TimestampMixin, Base):
@@ -124,6 +166,9 @@ class Transcript(TimestampMixin, Base):
     )
     retrieval_error: Mapped[str | None] = mapped_column(Text)
     retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     text_hash: Mapped[str | None] = mapped_column(String(64))
 
     video: Mapped[Video] = relationship(back_populates="transcripts")
@@ -203,6 +248,7 @@ class SyncRun(Base):
     __tablename__ = "sync_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    operation: Mapped[str] = mapped_column(String(64), default="liked_videos")
     status: Mapped[SyncStatus] = mapped_column(Enum(SyncStatus, native_enum=False), index=True)
     dry_run: Mapped[bool] = mapped_column(Boolean)
     started_at: Mapped[datetime] = mapped_column(default=utc_now)

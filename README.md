@@ -1,8 +1,8 @@
 # YouTube Knowledge Manager
 
-YouTube Knowledge Manager is a local-first Python application for collecting, classifying, reviewing, searching, and organizing the videos in your YouTube Liked Videos playlist.
+YouTube Knowledge Manager is a local-first Python application for collecting, classifying, reviewing, searching, and organizing videos from Liked Videos and every saved YouTube playlist.
 
-It uses Playwright with a dedicated authenticated browser profile. It does not use the YouTube Data API for bulk collection or playlist assignment. Video metadata, classifications, transcripts, action history, and review state are stored in a local SQLite database.
+It starts normal Google Chrome or Microsoft Edge with a dedicated authenticated profile, then attaches Playwright through a loopback-only debugging connection for automation. It does not use the YouTube Data API for bulk collection or playlist assignment. Video metadata, classifications, transcripts, action history, and review state are stored in a local SQLite database.
 
 The application never asks for or stores your Google password. You sign in manually through Google's normal browser pages.
 
@@ -10,9 +10,9 @@ The application never asks for or stores your Google password. You sign in manua
 
 Current version: `0.1.0`
 
-Lifecycle: Alpha
+Lifecycle: Production candidate
 
-The architecture, database, command-line interface, Streamlit interface, tests, migrations, and safety controls are implemented and locally verified. A full authenticated crawl and real playlist assignment have not been validated against this account yet. Treat the first live runs as controlled tests.
+The architecture, database, command-line interface, Streamlit interface, migrations, operations, and safety controls are implemented and locally verified. The automated suite enforces a 75% coverage floor, security lint, dependency auditing, migration round trips, and private-file exclusions. A complete authenticated read-only saved-library crawl has run. Some playlist count mismatches, intermittent partial library discovery, a repeatable full local import, and one controlled add-only playlist action remain account-specific production gates.
 
 Read [assessment.md](assessment.md) before changing the project. It contains the current requirement coverage, architecture assessment, verification results, risks, release gates, and prioritized work. See [CHANGELOG.md](CHANGELOG.md) for every delivered repository change.
 
@@ -20,9 +20,12 @@ See [completed-upgrades.md](completed-upgrades.md) for the permanent record of s
 
 ## What the application does
 
-- Opens YouTube using a dedicated persistent Chromium profile.
+- Opens YouTube using a dedicated persistent Chrome or Edge profile.
 - Lets you authenticate manually without exposing credentials to the application.
 - Progressively scrolls through the Liked Videos playlist.
+- Discovers every saved YouTube playlist, including Liked Videos and Watch Later.
+- Crawls each discovered playlist and stores its current video memberships and positions.
+- Preserves membership history by marking missing observations inactive instead of deleting them.
 - Extracts visible video IDs, titles, channels, thumbnails, durations, URLs, and playlist positions.
 - Stores each discovered video immediately when write mode is enabled.
 - Uses content fingerprints to detect new or changed videos.
@@ -31,11 +34,18 @@ See [completed-upgrades.md](completed-upgrades.md) for the permanent record of s
 - Allows a video to belong to multiple categories.
 - Routes uncertain and unclassified videos to a Streamlit review queue.
 - Creates durable, idempotent proposals for YouTube playlist additions.
+- Reports duplicate placement across regular playlists, empty and oversized playlists, uncategorized saved videos, and approved category additions that are still missing.
+- Skips add proposals when the video is already known to be in the target playlist.
 - Adds approved videos to YouTube playlists only after an explicit apply command.
 - Searches local titles, descriptions, and channel names.
 - Filters search results by approved category.
 - Produces simple local summaries from descriptions or transcripts.
 - Records synchronization runs, classification evidence, action attempts, failures, and completion state.
+- Rejects incomplete playlist crawls for membership deactivation.
+- Enriches metadata and transcripts with durable retry state.
+- Prevents concurrent writers with an explicit application lock.
+- Verifies SQLite integrity, backup, and restore operations.
+- Produces a counts-only private-data inventory.
 
 ## What the application does not do
 
@@ -43,6 +53,8 @@ See [completed-upgrades.md](completed-upgrades.md) for the permanent record of s
 - It does not delete YouTube playlists.
 - It does not remove videos from existing playlists.
 - It does not create YouTube playlists automatically.
+- It does not rename, merge, reorder, or move playlists or videos.
+- It does not automatically act on optimization findings.
 - It does not bypass CAPTCHA, login challenges, consent screens, rate limits, or account-security controls.
 - It does not accept exported cookies or passwords.
 - It does not perform a YouTube write during collection, classification, review, search, or planning.
@@ -57,9 +69,16 @@ There are four different operation types. They are intentionally separate.
 | --- | --- | --- | --- | --- |
 | `ykm sync` | Yes | No | No | No |
 | `ykm sync --write` | Yes | Yes | No | No |
+| `ykm sync-library` | Yes | No | No | No |
+| `ykm sync-library --write` | Yes | Yes | No | No |
+| `ykm optimize-library` | No | No | No | No |
+| `ykm optimize-library --write-plan` | No | Yes | Yes | No |
 | `ykm classify --write` | No | Yes | No | No |
+| `ykm enrich` | No | No | No | No |
+| `ykm enrich --write` | Yes | Yes | No | No |
 | `ykm plan --write` | No | Yes | Yes | No |
 | `ykm apply-plan` | No | No | No | No |
+| `ykm apply-plan --validate` | Yes | No | Uses existing plan | No |
 | `ykm apply-plan --apply` | Yes | Yes | Uses existing plan | Yes, add-only |
 
 The only command that changes YouTube is:
@@ -72,6 +91,8 @@ Do not run it until you have inspected the local categories, review decisions, a
 
 Browser operations use configurable randomized delays. The session stops when it detects CAPTCHA, login, consent, or known account-security prompts. Resolve those prompts manually with `browser-login`. Do not automate around them.
 
+YouTube calls its folders playlists. In this documentation, saved playlist library means every playlist shown at `https://www.youtube.com/feed/playlists`, plus the system playlists YouTube exposes there.
+
 ## Requirements
 
 ### Windows
@@ -80,6 +101,7 @@ Browser operations use configurable randomized delays. The session stops when it
 - Python 3.12 or newer.
 - PowerShell 7 is recommended. Windows PowerShell also works for the supplied scripts.
 - [uv](https://docs.astral.sh/uv/) for Python and dependency management.
+- Google Chrome or Microsoft Edge. Chrome is the default browser channel.
 - A graphical desktop session for manual YouTube authentication.
 - Enough local storage for the SQLite database, browser profile, metadata, and optional transcripts.
 
@@ -91,7 +113,7 @@ uv --version
 git --version
 ```
 
-The bootstrap process creates a Python 3.12 virtual environment through uv. It does not use the system Python 3.11 installation when Python 3.12 is available.
+The bootstrap process creates a Python 3.12 virtual environment through uv. On Windows it stores that environment under `%LOCALAPPDATA%\yt-librarian\.venv` with copy mode. This avoids OneDrive read-only reparse points inside repository-local environments.
 
 ### macOS and Linux
 
@@ -108,12 +130,12 @@ Set-Location 'C:\Users\mick0\OneDrive\Documents\Code & Dev\GitHub\yt-librarian'
 
 The bootstrap script performs these steps:
 
-1. Runs `uv sync --all-extras`.
+1. Selects `%LOCALAPPDATA%\yt-librarian\.venv` and runs `uv sync --all-extras` in copy mode.
 2. Installs the Playwright Chromium browser.
 3. Creates `.env` from `.env.example` if `.env` does not exist.
 4. Creates `config/categories.yaml` from the category example if it does not exist.
 5. Creates `config/rules.yaml` from the rule example if it does not exist.
-6. Runs all Alembic database migrations.
+6. Runs `ykm init-db`, which applies migrations under the application lock and synchronizes categories.
 
 The bootstrap script does not overwrite existing `.env`, `categories.yaml`, or `rules.yaml` files.
 
@@ -131,6 +153,8 @@ Do not change the machine-wide execution policy just to run this project.
 Use this when you want to run each setup step yourself.
 
 ```powershell
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $env:LOCALAPPDATA 'yt-librarian\.venv'
+$env:UV_LINK_MODE = 'copy'
 uv sync --all-extras
 uv run playwright install chromium
 
@@ -146,11 +170,10 @@ if (-not (Test-Path config\rules.yaml)) {
     Copy-Item config\rules.example.yaml config\rules.yaml
 }
 
-uv run alembic upgrade head
 uv run ykm init-db
 ```
 
-`alembic upgrade head` creates or upgrades the schema. `ykm init-db` also synchronizes categories from the configured YAML file.
+`ykm init-db` creates or upgrades the schema and synchronizes categories. If an existing database is behind the current migration head, it first creates and verifies a SQLite backup.
 
 ## macOS and Linux setup
 
@@ -195,7 +218,7 @@ categories:
     youtube_playlist_name: Knowledge - Software Engineering
 ```
 
-The current browser executor locates playlists by exact visible name. A stored playlist ID is retained for planning and identity, but visible-name matching is still required during browser execution.
+The browser executor uses `youtube_playlist_id` when the Save dialog exposes playlist IDs. It fails closed if the ID does not match. If YouTube omits IDs, it requires exactly one exact visible-name match and rejects ambiguous duplicates.
 
 ### 3. Authenticate the dedicated browser profile
 
@@ -206,12 +229,12 @@ uv run ykm browser-login
 This command:
 
 1. Creates or opens the dedicated profile configured by `YKM_BROWSER_PROFILE_DIR`.
-2. Opens the Liked Videos playlist.
-3. Leaves authentication and security prompts under your control.
-4. Waits for you to press Enter in PowerShell.
-5. Closes the Playwright browser cleanly.
+2. Starts the installed Chrome or Edge application directly, without Playwright automation or a debugging connection.
+3. Opens the Liked Videos playlist.
+4. Leaves authentication and security prompts under your control.
+5. Waits for you to close the dedicated browser completely and press Enter in PowerShell.
 
-Sign in manually. Confirm the browser can display your Liked Videos playlist. Resolve any normal Google prompt yourself. Return to PowerShell and press Enter only when finished.
+Sign in manually. Confirm the browser can display your Liked Videos playlist and account avatar. Resolve any normal Google prompt yourself. Use the browser menu to exit that dedicated browser completely, then return to PowerShell and press Enter.
 
 Do not point the application at your normal Chrome or Edge profile. Use the dedicated profile under `data/browser-profile`. Do not open that same profile in two browser processes at once.
 
@@ -221,9 +244,15 @@ Do not point the application at your normal Chrome or Edge profile. Use the dedi
 uv run ykm sync
 ```
 
-This opens the authenticated profile, reads the playlist, scrolls until the visible video count is stable, and reports how many videos it saw. It does not persist videos or classifications.
+This starts the same installed browser with the same authenticated profile. It enables a random loopback-only debugging port, attaches Playwright after the browser starts, reads the playlist, scrolls until the visible video count is stable, and reports how many videos it saw. It does not persist videos or classifications. The debugging port is not exposed to the network.
+
+YouTube sometimes commits the playlist route before its item models hydrate. The collector makes up to three bounded load attempts. It checks for login and security intervention before each retry and stops immediately if either appears.
 
 For the first real playlist, compare the reported count with YouTube. Also compare representative entries near the beginning, middle, and end of the playlist before trusting completeness.
+
+The collector supports YouTube's classic `ytd-playlist-video-renderer`, current `yt-lockup-view-model`, and `yt-continuation-item-view-model` continuation layouts. It recognizes normal watch URLs, Shorts, and live-video URLs. Individual playlist crawls reject recommendation links whose `list` parameter does not identify the current playlist. Each visible batch is extracted in one browser call so large playlists do not repeatedly reparse every loaded item.
+
+YouTube's playlist header can include unavailable videos even when the page says those videos are hidden. `ykm sync` counts only visible entries with a usable video ID. Record and investigate any difference before treating the crawl as fully reconciled.
 
 If YouTube presents CAPTCHA, login, consent, or a security challenge, the run stops. Use `browser-login`, resolve it manually, close the browser, and rerun the preview.
 
@@ -293,10 +322,11 @@ Without `--apply`, this only reports how many actions are pending. It does not o
 After the dry-run and plan have been inspected:
 
 ```powershell
+uv run ykm apply-plan --validate --limit 1
 uv run ykm apply-plan --apply --limit 1
 ```
 
-Verify the result directly in YouTube. Confirm that rerunning the same action does not create a duplicate and that an already-selected playlist is treated as complete.
+The validation command opens and inspects the Save dialog without selecting anything or changing action state. Verify its target first. Then run the explicit apply command, verify the result directly in YouTube, and confirm that rerunning the same action does not create a duplicate. An already-selected target is recorded as successful.
 
 Only increase the limit after the one-item test succeeds:
 
@@ -329,6 +359,62 @@ The supplied sync wrapper accepts normal CLI arguments:
 .\scripts\run_sync.ps1 --write
 ```
 
+## Saved playlist inventory and optimization
+
+Use this workflow to inventory every saved YouTube playlist. It is separate from `ykm sync`, which only scans Liked Videos.
+
+Start with a small read-only preview:
+
+```powershell
+uv run ykm sync-library --limit-playlists 3
+```
+
+This discovers the full saved playlist list but crawls only the selected number of playlists. Limited runs prioritize small regular playlists with known counts, which avoids starting validation with Liked Videos or Watch Later. It writes nothing locally and changes nothing on YouTube.
+
+Run the complete read-only preview after the small test succeeds:
+
+```powershell
+uv run ykm sync-library
+```
+
+Record the exact discovered playlist count from the credible preview. Require that same count before a full local write:
+
+```powershell
+uv run alembic upgrade head
+uv run ykm sync-library --write --expect-playlists 85
+```
+
+Replace `85` with the count from your own immediately preceding preview. An unrestricted write refuses to run without `--expect-playlists`. If discovery returns a different count, it stops before opening any individual playlist. This protects against YouTube intermittently exposing only a partial Playlists page while still appearing stable.
+
+Write mode stores playlists, videos, active memberships, positions, observed timestamps, and reported playlist counts in SQLite. Each video is committed as it is observed so a later failure does not discard earlier work. A playlist that cannot load or reconcile its displayed count is reported and skipped. Login, CAPTCHA, consent, and security prompts stop the entire run. Memberships are marked inactive only after that playlist finishes successfully, which avoids false removals after an incomplete crawl. Abandoned synchronization runs are marked failed when the next write starts.
+
+Analyze the stored inventory:
+
+```powershell
+uv run ykm optimize-library
+uv run ykm optimize-library --oversized-threshold 300
+```
+
+The report is local and read only. It shows:
+
+- Saved playlist count and system playlist count.
+- Empty regular playlists.
+- Regular playlists above the selected size threshold.
+- Active playlist memberships and unique saved videos.
+- Videos present in more than one regular playlist. Liked Videos and Watch Later are excluded from this duplicate calculation.
+- Saved videos with no active regular playlist membership.
+- Approved category assignments whose configured target playlist does not already contain the video.
+
+Store only the add recommendations as the normal local playlist plan:
+
+```powershell
+uv run ykm optimize-library --write-plan
+```
+
+This does not change YouTube. Review the plan in Streamlit. `ykm apply-plan --apply` remains the only YouTube write command, and it remains add only. The optimizer never removes, moves, merges, renames, creates, or deletes anything on YouTube.
+
+Run the workflow again when playlists change. Playlist identity is based on YouTube playlist ID, so a rename updates the local name without creating a duplicate playlist. Video identity is based on YouTube video ID. Repeated imports update observations and do not create duplicate memberships.
+
 ## Configuration
 
 Settings are loaded from `.env` with the `YKM_` prefix. Environment variables override the defaults. Run commands from the repository root so relative paths resolve correctly.
@@ -339,7 +425,7 @@ Settings are loaded from `.env` with the `YKM_` prefix. Environment variables ov
 | --- | --- | --- |
 | `YKM_DATABASE_URL` | `sqlite:///data/youtube_knowledge_manager.sqlite3` | SQLAlchemy URL for the local database. |
 | `YKM_BROWSER_PROFILE_DIR` | `data/browser-profile` | Dedicated persistent authentication profile. |
-| `YKM_BROWSER_CHANNEL` | `chromium` | Browser channel. Supported values are `chromium`, `chrome`, and `msedge`. |
+| `YKM_BROWSER_CHANNEL` | `chrome` | Browser channel. Use `chrome` or `msedge` for manual Google sign-in. `chromium` remains available for unauthenticated automation only. |
 | `YKM_HEADLESS` | `false` | Runs without a visible browser when true. Keep false for login and early validation. |
 | `YKM_DRY_RUN` | `true` | Retained application safety setting. CLI and UI operations still require their explicit write controls. Do not treat this value as write authorization. |
 | `YKM_ALLOW_PLAYLIST_REMOVALS` | `false` | Reserved safety setting. Playlist removal is not implemented even if changed. |
@@ -354,6 +440,11 @@ Settings are loaded from `.env` with the `YKM_` prefix. Environment variables ov
 | `YKM_AI_MODEL` | `gpt-5-mini` | Provider-specific model name. Confirm availability with the configured provider. |
 | `YKM_AI_BASE_URL` | `http://localhost:11434/v1` | Base URL for a local OpenAI-compatible chat-completions service. |
 | `YKM_AI_PROMPT_VERSION` | `v1` | Audit label stored with classification runs. |
+| `YKM_AI_TIMEOUT_SECONDS` | `60` | Per-request timeout. Accepted range is 5 through 300 seconds. |
+| `YKM_AI_MAX_RETRIES` | `2` | Bounded provider retries. Accepted range is 0 through 5. |
+| `YKM_AI_DAILY_TOKEN_LIMIT` | `100000` | Stops new AI calls when today's recorded usage reaches the limit. Set 0 to disable AI calls. |
+| `YKM_AI_INPUT_COST_PER_MILLION` | `0` | Local input-token price used for estimated cost. |
+| `YKM_AI_OUTPUT_COST_PER_MILLION` | `0` | Local output-token price used for estimated cost. |
 | `YKM_LOG_LEVEL` | `INFO` | Structured console log level. |
 | `OPENAI_API_KEY` | None | OpenAI client credential. Set only when the OpenAI provider is enabled. |
 
@@ -362,7 +453,7 @@ Example `.env`:
 ```dotenv
 YKM_DATABASE_URL=sqlite:///data/youtube_knowledge_manager.sqlite3
 YKM_BROWSER_PROFILE_DIR=data/browser-profile
-YKM_BROWSER_CHANNEL=chromium
+YKM_BROWSER_CHANNEL=chrome
 YKM_HEADLESS=false
 YKM_DRY_RUN=true
 YKM_MIN_ACTION_DELAY_SECONDS=1.5
@@ -373,6 +464,11 @@ YKM_CATEGORIES_PATH=config/categories.yaml
 YKM_RULES_PATH=config/rules.yaml
 YKM_REVIEW_CONFIDENCE_THRESHOLD=0.75
 YKM_AI_PROVIDER=none
+YKM_AI_TIMEOUT_SECONDS=60
+YKM_AI_MAX_RETRIES=2
+YKM_AI_DAILY_TOKEN_LIMIT=100000
+YKM_AI_INPUT_COST_PER_MILLION=0
+YKM_AI_OUTPUT_COST_PER_MILLION=0
 YKM_LOG_LEVEL=INFO
 ```
 
@@ -495,7 +591,7 @@ Creates or migrates the database and synchronizes categories. Safe to rerun.
 uv run ykm browser-login
 ```
 
-Uses the dedicated profile. Press Enter in the terminal after authentication is complete.
+Starts normal Chrome or Edge with the dedicated profile and no automation connection. Confirm the account is visible, exit that browser completely, then press Enter in the terminal.
 
 ### Preview collection
 
@@ -513,6 +609,26 @@ uv run ykm sync --write
 
 Writes only to local SQLite. Does not modify YouTube.
 
+### Preview or persist every saved playlist
+
+```powershell
+uv run ykm sync-library
+uv run ykm sync-library --limit-playlists 3
+uv run ykm sync-library --write --expect-playlists 85
+```
+
+Without `--write`, the command discovers and crawls saved playlists without database mutation. `--limit-playlists` accepts a positive count and is intended for controlled validation. A full `--write` requires `--expect-playlists` to match the exact discovery result before playlist processing starts. Limited writes remain available for deliberate diagnostics. Write mode synchronizes configured categories, stores the playlist inventory and memberships, then classifies pending videos. It never changes YouTube.
+
+### Analyze and plan library optimization
+
+```powershell
+uv run ykm optimize-library
+uv run ykm optimize-library --oversized-threshold 300
+uv run ykm optimize-library --write-plan
+```
+
+The default report is read only. `--oversized-threshold` must be positive and defaults to 500. `--write-plan` persists only missing approved category additions. It does not execute them and never creates removal actions.
+
 ### Classify pending local videos
 
 ```powershell
@@ -522,6 +638,16 @@ uv run ykm classify --write --limit 500
 ```
 
 Without `--write`, the command processes pending records in preview mode and reports the count but does not persist assignments. The allowed limit is 1 through 10,000. Default: 100.
+
+### Enrich metadata and transcripts
+
+```powershell
+uv run ykm enrich --limit 100
+uv run ykm enrich --write --limit 100
+uv run ykm enrich --write --no-transcripts --limit 100
+```
+
+Preview mode reports eligible records without opening a browser. Write mode stores per-video success or failure state, attempt count, last attempt time, and retry eligibility. Completed transcript records are not duplicated on rerun.
 
 ### Preview and persist a playlist plan
 
@@ -536,11 +662,40 @@ Both are local operations. The first rolls back proposed actions. The second per
 
 ```powershell
 uv run ykm apply-plan
+uv run ykm apply-plan --validate --limit 1
 uv run ykm apply-plan --apply --limit 1
 uv run ykm apply-plan --apply --limit 10
 ```
 
-Without `--apply`, only the pending count is printed. With `--apply`, the application opens YouTube and performs add-only playlist assignments. The allowed limit is 1 through 1,000. Default: 100.
+Without `--apply` or `--validate`, only the pending count is printed. `--validate` opens dialogs and verifies target resolution without selecting a playlist or changing action state. `--apply` performs add-only playlist assignments. The flags are mutually exclusive. The allowed limit is 1 through 1,000. Default: 100.
+
+### Check, back up, and restore SQLite
+
+```powershell
+uv run ykm db-check
+uv run ykm db-backup
+uv run ykm db-backup --destination D:\PrivateBackups\ykm.sqlite3
+uv run ykm db-restore D:\PrivateBackups\ykm.sqlite3 --apply
+```
+
+Backup and restore use SQLite's supported backup API and verify integrity. Restore requires `--apply` and creates a verified pre-restore backup when an active database exists.
+
+### Report a privacy-safe data inventory
+
+```powershell
+uv run ykm data-inventory
+uv run ykm data-inventory --output data\inventory.json
+```
+
+The JSON contains a schema version and table counts only. It excludes names, URLs, paths, transcript content, AI responses, credentials, and browser state.
+
+### Remove a stale application lock
+
+```powershell
+uv run ykm unlock --force
+```
+
+Use this only after confirming the process recorded in the lock file is no longer running. Locks are never removed automatically.
 
 ### Search the local database
 
@@ -557,6 +712,8 @@ Search covers title, description, and channel name. The category option accepts 
 ```powershell
 uv run ykm --help
 uv run ykm sync --help
+uv run ykm sync-library --help
+uv run ykm optimize-library --help
 uv run ykm apply-plan --help
 ```
 
@@ -570,11 +727,15 @@ Start the application:
 
 ### Dashboard
 
-Shows total videos, review items, pending playlist actions, and the last synchronization status.
+Shows total videos, saved playlists, review items, pending playlist actions, and the last synchronization status.
 
 ### Collection
 
-Starts a browser collection scan. The `Persist discovered and changed videos` checkbox controls local database writes. This page runs collection only. For the full collect-and-classify workflow, use `ykm sync --write` from PowerShell.
+Starts either a Liked Videos scan or an all saved playlists scan. Select the scope first. The write checkbox controls local database writes. A playlist limit supports small controlled tests. A full saved-library write requires the expected discovery count from a recent read-only preview. The page never changes YouTube. For collection followed by classification, use the corresponding CLI command with `--write`.
+
+### Library Optimization
+
+Analyzes the locally imported playlist inventory. It displays membership coverage, duplicate placement across regular playlists, empty or oversized playlists, uncategorized saved videos, and safe add recommendations. The button stores add-only recommendations in the local playlist plan. It does not execute YouTube actions.
 
 ### Categories
 
@@ -612,7 +773,7 @@ Displays non-secret effective settings. Secrets are intentionally omitted. Edit 
 
 The browser profile contains authenticated session material. Treat it as sensitive. Do not copy it to Git, cloud-shared examples, issue attachments, or diagnostic bundles.
 
-The SQLite database can contain personal viewing metadata, transcripts, classifications, AI responses, and playlist plans. Treat it as private.
+The SQLite database can contain personal viewing metadata, saved playlist names, playlist memberships, transcripts, classifications, AI responses, and playlist plans. Treat it as private.
 
 ## Database migrations
 
@@ -634,7 +795,7 @@ Display migration history:
 uv run alembic history
 ```
 
-Back up the private SQLite database before applying future migrations. A first-class backup command is planned but not implemented.
+For normal operation, use `uv run ykm init-db`. It locks writers and creates a verified pre-migration backup when needed. Use raw Alembic commands only for development checks. Raw Alembic commands honor `YKM_DATABASE_URL` when it is set.
 
 ## Troubleshooting
 
@@ -655,7 +816,17 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\bootstrap.ps1
 ```
 
-### Playwright reports that the browser executable is missing
+### Chrome or Edge cannot be found
+
+Install Google Chrome, or set the browser channel to Microsoft Edge:
+
+```powershell
+YKM_BROWSER_CHANNEL=msedge
+```
+
+The manual Google login command does not support `YKM_BROWSER_CHANNEL=chromium`.
+
+### Playwright Chromium is missing
 
 ```powershell
 uv run playwright install chromium
@@ -663,7 +834,7 @@ uv run playwright install chromium
 
 ### The profile is already in use
 
-Close every browser window created by `ykm browser-login`, synchronization, or playlist execution. The dedicated profile cannot be used by two Chromium processes simultaneously.
+Exit every browser window created by `ykm browser-login`, synchronization, or playlist execution. The dedicated profile cannot be used by two browser processes simultaneously. If sync cannot attach, use the Chrome or Edge menu to exit the dedicated browser instead of closing only one tab.
 
 Do not delete the profile unless you intend to lose its authenticated session.
 
@@ -675,7 +846,7 @@ The application should stop. Run:
 uv run ykm browser-login
 ```
 
-Resolve the prompt manually. Close the browser through the terminal workflow, then retry the previous command. Do not add code that clicks through or bypasses the security control.
+Resolve the prompt manually. Exit the dedicated browser completely, press Enter in the terminal workflow, then retry the previous command. Do not add code that clicks through or bypasses the security control.
 
 ### The crawler reports zero videos
 
@@ -688,13 +859,19 @@ Resolve the prompt manually. Close the browser through the terminal workflow, th
 
 Do not commit screenshots or page captures containing personal data. Create sanitized fixtures for regression tests.
 
+### Playlist items time out while loading
+
+Current versions retry playlist hydration up to three times. A visible Sign in link, CAPTCHA, consent screen, or security prompt stops the retry and requires manual intervention. If all three attempts fail without one of those prompts, exit the dedicated browser completely, verify the Liked Videos page loads normally, and rerun `uv run ykm sync`.
+
+If the terminal still shows the raw Playwright message `Locator.wait_for: Timeout 60000ms exceeded`, update to the current working tree. The collector now replaces that raw error after bounded retries with an actionable `PlaylistLoadError`.
+
 ### The reported count is too low
 
-Increase `YKM_MAX_SCROLLS` cautiously or increase `YKM_STABLE_SCROLL_LIMIT` in `.env`. Keep action delays conservative. Verify the end of the playlist manually. A low count can indicate virtualized scrolling or a selector change.
+Check whether YouTube says unavailable videos are hidden. The playlist header can include those entries while the collector cannot see or identify them. If that does not explain the difference, increase `YKM_MAX_SCROLLS` cautiously or increase `YKM_STABLE_SCROLL_LIMIT` in `.env`. Keep action delays conservative. Verify the end of the playlist manually. A low count can also indicate virtualized scrolling or a selector change.
 
 ### SQLite reports that the database is locked
 
-Close Streamlit and other `ykm` processes. Run only one synchronization or playlist executor at a time. SQLite has a busy timeout, but the application does not yet provide a single-writer lock.
+Read the lock report, then close the named Streamlit or CLI process. If the recorded process is definitely gone, run `uv run ykm unlock --force`. The application never guesses that a lock is stale.
 
 ### A category is missing
 
@@ -776,8 +953,11 @@ Run the complete normal validation set:
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src
-uv run pytest -m "not live_youtube"
+uv run pytest -m "not live_youtube" --cov=youtube_knowledge_manager --cov-report=term --cov-fail-under=75
+uvx bandit -q -r src
 ```
+
+CI also exports the frozen dependency graph for `pip-audit` and runs Alembic upgrade, schema-drift, and downgrade checks.
 
 Format and safely fix lint issues:
 
@@ -825,15 +1005,17 @@ Only sanitized examples, fixtures, templates, migrations, and source code belong
 
 ## Known limitations
 
-- Live YouTube selectors and playlist dialogs have not completed controlled validation.
+- A complete authenticated read-only saved-library crawl discovered 85 playlists. Nineteen playlist count mismatches and intermittent four-card discovery remain under investigation.
+- Live playlist dialogs have not completed controlled write validation.
 - Unavailable playlist entries without a usable video ID may not be stored.
-- Transcript extraction is best-effort and is not yet safely idempotent across retries.
-- AI retries, timeouts, cost calculation, and spending limits are incomplete.
+- Failed or private playlists are reported and skipped. They remain incomplete until a later successful crawl.
+- Optimization is advisory and add only. Automatic merges, moves, removals, renames, and playlist creation are intentionally absent.
+- Transcript extraction remains layout-dependent and best-effort. Persistence and retry state are idempotent.
+- AI model pricing is operator supplied because provider prices change. The application enforces the configured timeout, retry, and token limits.
 - Text search uses SQL `LIKE` rather than SQLite FTS5.
 - Semantic embeddings and vector search are not implemented.
-- Streamlit does not provide robust progress, cancellation, or bulk review controls.
-- Concurrent writers are not protected by a dedicated application lock.
-- Database backup and restore commands are not implemented.
+- Streamlit reports collection progress. Cancellation is cooperative. Bulk review is not implemented.
+- Full readiness still requires reconciliation of the remaining live count mismatches, a repeatable full local import, representative Liked Videos checks, and one controlled live add-only action against an explicitly selected disposable target.
 
 See [assessment.md](assessment.md) for risk severity, prioritized work, and production release gates.
 

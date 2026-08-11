@@ -11,13 +11,13 @@ from youtube_knowledge_manager.classification.schemas import (
 class OpenAIProvider:
     name = "openai"
 
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, *, timeout_seconds: float, max_retries: int) -> None:
         try:
             from openai import OpenAI
         except ImportError as exc:
             raise RuntimeError("Install the ai extra with: uv sync --extra ai") from exc
         self.model = model
-        self._client: Any = OpenAI()
+        self._client: Any = OpenAI(timeout=timeout_seconds, max_retries=max_retries)
 
     def classify(
         self, item: ClassificationInput, categories: list[CategoryConfig]
