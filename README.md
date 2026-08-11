@@ -957,7 +957,7 @@ uv run pytest -m "not live_youtube" --cov=youtube_knowledge_manager --cov-report
 uvx bandit -q -r src
 ```
 
-CI also exports the frozen dependency graph for `pip-audit`, runs Alembic upgrade, schema-drift, and downgrade checks, and verifies CLI safety outcomes without depending on platform-specific terminal rendering.
+CI also exports the frozen dependency graph for `pip-audit`, runs Alembic upgrade, schema-drift, and downgrade checks, and verifies CLI safety outcomes without depending on platform-specific terminal rendering. Third-party actions are pinned to full commit SHAs and use Node.js 24 runtimes.
 
 Format and safely fix lint issues:
 

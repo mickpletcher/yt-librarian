@@ -34,6 +34,7 @@ Every repository change is recorded in this file. Entries describe behavior, cod
 
 ### Changed
 
+- Upgraded the GitHub Actions checkout and uv setup actions to Node.js 24 releases and pinned their full commit SHAs.
 - Changed collected playlist positions to count only verified membership rows, preventing recommendation elements from creating position gaps.
 - Changed lock-file creation to request owner-only permissions and changed dashboard playlist totals to use a direct count query.
 - Changed AI budgeting so a zero daily limit disables provider calls and preview classification is deterministic-only, preventing unrecorded provider usage from bypassing the daily ceiling.
