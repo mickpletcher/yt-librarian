@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from youtube_knowledge_manager.classification.classifier import ClassificationEngine
@@ -26,8 +28,14 @@ class ClassificationService:
 
     def classify_pending(self, *, limit: int = 100, write: bool = False) -> int:
         processed = 0
+        daily_tokens = self.classifications.daily_token_usage()
         for video in self.videos.list_for_classification(limit=limit):
             transcript = video.transcripts[0].transcript_text if video.transcripts else None
+            allow_ai = (
+                write
+                and self.settings.ai_daily_token_limit > 0
+                and daily_tokens < self.settings.ai_daily_token_limit
+            )
             outcome = self.engine.classify(
                 ClassificationInput(
                     youtube_video_id=video.youtube_video_id,
@@ -35,7 +43,8 @@ class ClassificationService:
                     description=video.description,
                     channel_name=video.channel_name,
                     transcript_text=transcript,
-                )
+                ),
+                allow_ai=allow_ai,
             )
             if not write:
                 processed += 1
@@ -63,6 +72,18 @@ class ClassificationService:
                     approved=approved,
                 )
             if outcome.provider not in {"rules", "none"}:
+                usage = outcome.token_usage or {}
+                input_tokens = usage.get("input_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
+                estimated_cost = Decimal(
+                    str(
+                        (
+                            input_tokens * self.settings.ai_input_cost_per_million
+                            + output_tokens * self.settings.ai_output_cost_per_million
+                        )
+                        / 1_000_000
+                    )
+                )
                 self.classifications.add_run(
                     ClassificationRun(
                         video_id=video.id,
@@ -75,11 +96,13 @@ class ClassificationService:
                             "decisions": [decision.model_dump() for decision in outcome.decisions]
                         },
                         token_usage=outcome.token_usage,
+                        estimated_cost=estimated_cost,
                         started_at=outcome.started_at or outcome.completed_at,
                         completed_at=outcome.completed_at,
                         error_information=outcome.error,
                     )
                 )
+                daily_tokens += usage.get("total_tokens", 0)
             needs_review = not outcome.decisions or any(
                 decision.confidence < self.settings.review_confidence_threshold
                 for decision in outcome.decisions

@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from youtube_knowledge_manager.db.models import (
@@ -31,7 +32,28 @@ class ReviewService:
         if assignment is None:
             raise LookupError(f"Assignment not found: {assignment_id}")
         assignment.approved = approved
-        assignment.video.classification_status = ProcessingStatus.COMPLETE
+        self.session.flush()
+        pending = self.session.scalar(
+            select(VideoCategory.id)
+            .where(
+                VideoCategory.video_id == assignment.video_id,
+                VideoCategory.approved.is_(None),
+            )
+            .limit(1)
+        )
+        accepted = self.session.scalar(
+            select(VideoCategory.id)
+            .where(
+                VideoCategory.video_id == assignment.video_id,
+                VideoCategory.approved.is_(True),
+            )
+            .limit(1)
+        )
+        assignment.video.classification_status = (
+            ProcessingStatus.COMPLETE
+            if pending is None and accepted is not None
+            else ProcessingStatus.REVIEW
+        )
         self.session.commit()
         return assignment
 

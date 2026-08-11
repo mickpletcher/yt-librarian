@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,10 @@ class CrawlSummary:
     seen: int = 0
     created: int = 0
     changed: int = 0
+
+
+class IncompletePlaylistCrawlError(RuntimeError):
+    pass
 
 
 def parse_duration_seconds(value: str | None) -> int | None:
@@ -42,10 +47,17 @@ def content_fingerprint(video: CollectedVideo) -> str:
 
 
 class Crawler:
-    def __init__(self, session: Session, *, dry_run: bool) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        dry_run: bool,
+        progress: Callable[[CrawlSummary], None] | None = None,
+    ) -> None:
         self.session = session
         self.dry_run = dry_run
         self.repository = VideoRepository(session)
+        self.progress = progress
 
     async def run(self, browser: BrowserSession) -> CrawlSummary:
         summary = CrawlSummary()
@@ -53,6 +65,8 @@ class Crawler:
         async def persist(video: CollectedVideo) -> None:
             summary.seen += 1
             if self.dry_run:
+                if self.progress is not None:
+                    self.progress(summary)
                 return
             result = self.repository.upsert(
                 VideoUpsert(
@@ -70,6 +84,13 @@ class Crawler:
             summary.created += int(result.created)
             summary.changed += int(result.changed and not result.created)
             self.session.commit()
+            if self.progress is not None:
+                self.progress(summary)
 
-        await LikedVideosCollector(browser).collect(on_video=persist)
+        result = await LikedVideosCollector(browser).collect(on_video=persist)
+        if not result.complete:
+            raise IncompletePlaylistCrawlError(
+                f"Liked Videos crawl stopped incomplete after {len(result.videos)} visible "
+                f"videos; reason={result.termination_reason}. No complete-run result was recorded."
+            )
         return summary

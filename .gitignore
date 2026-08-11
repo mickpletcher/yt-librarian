@@ -69,6 +69,7 @@ config/categories.yaml
 config/rules.yaml
 *.sqlite
 *.sqlite3
+*.sqlite3.lock
 *.db
 browser-profile/
 playwright-report/

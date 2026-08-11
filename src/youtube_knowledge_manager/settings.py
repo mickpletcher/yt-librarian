@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///data/youtube_knowledge_manager.sqlite3"
     browser_profile_dir: Path = Path("data/browser-profile")
-    browser_channel: Literal["chromium", "chrome", "msedge"] = "chromium"
+    browser_channel: Literal["chromium", "chrome", "msedge"] = "chrome"
     headless: bool = False
     dry_run: bool = True
     allow_playlist_removals: bool = False
@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     ai_model: str = "gpt-5-mini"
     ai_base_url: str = "http://localhost:11434/v1"
     ai_prompt_version: str = "v1"
+    ai_timeout_seconds: float = Field(default=60.0, ge=5.0, le=300.0)
+    ai_max_retries: int = Field(default=2, ge=0, le=5)
+    ai_daily_token_limit: int = Field(default=100_000, ge=0)
+    ai_input_cost_per_million: float = Field(default=0.0, ge=0.0)
+    ai_output_cost_per_million: float = Field(default=0.0, ge=0.0)
     log_level: str = "INFO"
 
     @model_validator(mode="after")

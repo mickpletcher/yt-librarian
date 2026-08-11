@@ -6,6 +6,7 @@ from youtube_knowledge_manager.ui.pages import (
     categories,
     collection,
     dashboard,
+    library_optimization,
     playlist_plan,
     review_queue,
     search,
@@ -34,6 +35,7 @@ def main() -> None:
             "Categories",
             "Review Queue",
             "Playlist Plan",
+            "Library Optimization",
             "Search",
             "Settings",
         ],
@@ -44,6 +46,7 @@ def main() -> None:
         "Categories": categories.render,
         "Review Queue": review_queue.render,
         "Playlist Plan": playlist_plan.render,
+        "Library Optimization": library_optimization.render,
         "Search": search.render,
         "Settings": settings_page.render,
     }

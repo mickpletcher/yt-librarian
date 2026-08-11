@@ -6,6 +6,7 @@ from youtube_knowledge_manager.db.models import Video
 from youtube_knowledge_manager.db.repositories import (
     BrowserActionRepository,
     ClassificationRepository,
+    PlaylistRepository,
     SyncRunRepository,
     VideoRepository,
 )
@@ -14,6 +15,7 @@ from youtube_knowledge_manager.db.repositories import (
 @dataclass(frozen=True)
 class DashboardSummary:
     total_videos: int
+    total_playlists: int
     review_items: int
     pending_actions: int
     last_sync_status: str | None
@@ -25,6 +27,7 @@ class VideoService:
         self.classifications = ClassificationRepository(session)
         self.actions = BrowserActionRepository(session)
         self.sync_runs = SyncRunRepository(session)
+        self.playlists = PlaylistRepository(session)
 
     def recent(self, limit: int = 100) -> list[Video]:
         return self.videos.list_recent(limit)
@@ -33,6 +36,7 @@ class VideoService:
         latest = self.sync_runs.latest()
         return DashboardSummary(
             total_videos=self.videos.count(),
+            total_playlists=self.playlists.count(),
             review_items=len(self.classifications.list_review_queue(limit=10_000)),
             pending_actions=len(self.actions.list_pending(limit=10_000)),
             last_sync_status=latest.status.value if latest else None,

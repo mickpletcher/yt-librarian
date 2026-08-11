@@ -39,7 +39,9 @@ class ClassificationEngine:
         self.categories = categories
         self.ai_provider = ai_provider
 
-    def classify(self, item: ClassificationInput) -> ClassificationOutcome:
+    def classify(
+        self, item: ClassificationInput, *, allow_ai: bool = True
+    ) -> ClassificationOutcome:
         input_hash = hashlib.sha256(
             json.dumps(item.model_dump(), sort_keys=True).encode("utf-8")
         ).hexdigest()
@@ -51,9 +53,13 @@ class ClassificationEngine:
                 input_hash=input_hash,
                 completed_at=utc_now(),
             )
-        if self.ai_provider is None:
+        if self.ai_provider is None or not allow_ai:
             return ClassificationOutcome(
-                decisions=[], provider="none", input_hash=input_hash, completed_at=utc_now()
+                decisions=[],
+                provider="none" if self.ai_provider is None else "budget",
+                input_hash=input_hash,
+                completed_at=utc_now(),
+                error=None if self.ai_provider is None else "Daily AI token limit reached",
             )
 
         started_at = utc_now()
