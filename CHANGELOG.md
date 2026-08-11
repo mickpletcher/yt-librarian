@@ -35,6 +35,7 @@ Every repository change is recorded in this file. Entries describe behavior, cod
 ### Changed
 
 - Changed raw Alembic execution to honor `YKM_DATABASE_URL`, ensuring CI and operator migration checks target the configured database, and made CI dependency installation frozen.
+- Changed CLI safety tests to assert rejected side effects instead of platform-dependent Rich terminal rendering, making the suite stable on Windows and Linux.
 - Scoped playlist item extraction to the primary page content and rejected video links whose `list` parameter does not match the playlist being crawled, excluding recommendation rows from membership inventory.
 - Increased external browser CDP connection attempts to a bounded five-second per-attempt timeout while retaining the 30-second overall startup deadline.
 - Changed saved-library summaries to report discovery completeness and the full discovered count separately from the processed count.

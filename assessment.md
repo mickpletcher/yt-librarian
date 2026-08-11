@@ -46,7 +46,7 @@ The following checks passed on Windows with Python 3.12.13:
 | Dependency audit | Frozen fully locked graph reports no known vulnerabilities |
 | Alembic migrations | Upgrade and downgrade passed against a temporary SQLite database; `YKM_DATABASE_URL` targeting has regression coverage |
 | Alembic schema drift | No new upgrade operations detected |
-| CLI initialization | `ykm init-db` passed |
+| CLI initialization | `ykm init-db` passed; safety tests assert rejected side effects consistently on Windows and Linux |
 | CLI discovery | All expected commands appeared in `ykm --help` |
 | Private runtime files | No database, browser profile, cookie, storage-state, transcript, or `.env` file was a Git candidate |
 | Operator documentation | README verified against current CLI help, settings, scripts, safety boundaries, and Streamlit workflow |

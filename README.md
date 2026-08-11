@@ -957,7 +957,7 @@ uv run pytest -m "not live_youtube" --cov=youtube_knowledge_manager --cov-report
 uvx bandit -q -r src
 ```
 
-CI also exports the frozen dependency graph for `pip-audit` and runs Alembic upgrade, schema-drift, and downgrade checks.
+CI also exports the frozen dependency graph for `pip-audit`, runs Alembic upgrade, schema-drift, and downgrade checks, and verifies CLI safety outcomes without depending on platform-specific terminal rendering.
 
 Format and safely fix lint issues:
 
