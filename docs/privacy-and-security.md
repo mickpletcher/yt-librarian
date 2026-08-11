@@ -6,7 +6,7 @@ The application never asks for or stores a Google password. Authentication happe
 
 AI is disabled by default. Enabling it sends selected titles, descriptions, channel names, and optional transcript text to the configured provider. Review the provider's retention terms before enabling it. API keys belong in environment variables or a private `.env` file.
 
-Remote AI calls have bounded timeouts and retries plus a daily token ceiling. Estimated cost uses operator-supplied per-million-token rates. The local provider accepts only loopback HTTP or HTTPS endpoints. Deterministic rules continue when the AI budget is exhausted or the provider fails.
+Remote AI calls have bounded timeouts and retries plus a daily token ceiling. A zero token limit disables AI calls. Preview classification is deterministic-only because provider usage cannot be durably counted without local writes. Estimated cost uses operator-supplied per-million-token rates. The local provider accepts only loopback HTTP or HTTPS endpoints. Deterministic rules continue when the AI budget is exhausted or the provider fails.
 
 No feature bypasses CAPTCHA, rate limits, consent, login, or account-security checks. The browser stops for manual intervention. Optimization is local and advisory. Playlist removal, playlist deletion, automatic moves or merges, and removal from Liked Videos are intentionally absent.
 

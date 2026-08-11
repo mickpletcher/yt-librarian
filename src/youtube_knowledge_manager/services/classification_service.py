@@ -32,8 +32,9 @@ class ClassificationService:
         for video in self.videos.list_for_classification(limit=limit):
             transcript = video.transcripts[0].transcript_text if video.transcripts else None
             allow_ai = (
-                self.settings.ai_daily_token_limit == 0
-                or daily_tokens < self.settings.ai_daily_token_limit
+                write
+                and self.settings.ai_daily_token_limit > 0
+                and daily_tokens < self.settings.ai_daily_token_limit
             )
             outcome = self.engine.classify(
                 ClassificationInput(

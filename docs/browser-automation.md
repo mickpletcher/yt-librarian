@@ -18,8 +18,8 @@ Playlist writes follow this sequence:
 
 1. Open the video.
 2. Open the Save dialog.
-3. Resolve the target by configured playlist ID when the dialog exposes IDs. Fail closed on an ID mismatch.
-4. Otherwise require one unambiguous exact visible-name match. Duplicate names fail closed.
+3. When a playlist ID is configured, require the dialog to expose and match that ID. A missing or different ID fails closed.
+4. Only when no ID is configured, require one unambiguous exact visible-name match. Duplicate names fail closed.
 5. If already selected, record success without clicking.
 6. In validation mode, close the dialog without selecting anything.
 7. In apply mode only, select it and verify the checked state.

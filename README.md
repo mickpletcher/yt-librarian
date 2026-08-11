@@ -218,7 +218,7 @@ categories:
     youtube_playlist_name: Knowledge - Software Engineering
 ```
 
-The browser executor uses `youtube_playlist_id` when the Save dialog exposes playlist IDs. It fails closed if the ID does not match. If YouTube omits IDs, it requires exactly one exact visible-name match and rejects ambiguous duplicates.
+When `youtube_playlist_id` is configured, the Save dialog must expose that exact ID or execution fails closed. When no ID is configured, the executor requires exactly one exact visible-name match and rejects ambiguous duplicates.
 
 ### 3. Authenticate the dedicated browser profile
 
@@ -637,7 +637,7 @@ uv run ykm classify --limit 500
 uv run ykm classify --write --limit 500
 ```
 
-Without `--write`, the command processes pending records in preview mode and reports the count but does not persist assignments. The allowed limit is 1 through 10,000. Default: 100.
+Without `--write`, the command processes pending records with deterministic rules only and reports the count without persisting assignments or calling an AI provider. AI classification runs only with `--write`, so token use can be recorded and enforced against the daily ceiling. The allowed limit is 1 through 10,000. Default: 100.
 
 ### Enrich metadata and transcripts
 

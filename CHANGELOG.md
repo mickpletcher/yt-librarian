@@ -34,6 +34,8 @@ Every repository change is recorded in this file. Entries describe behavior, cod
 
 ### Changed
 
+- Changed AI budgeting so a zero daily limit disables provider calls and preview classification is deterministic-only, preventing unrecorded provider usage from bypassing the daily ceiling.
+- Corrected playlist target documentation to require an exposed matching ID whenever an ID is configured; exact-name matching is used only when no ID is configured.
 - Changed raw Alembic execution to honor `YKM_DATABASE_URL`, ensuring CI and operator migration checks target the configured database, and made CI dependency installation frozen.
 - Changed CLI safety tests to assert rejected side effects instead of platform-dependent Rich terminal rendering, making the suite stable on Windows and Linux.
 - Scoped playlist item extraction to the primary page content and rejected video links whose `list` parameter does not match the playlist being crawled, excluding recommendation rows from membership inventory.

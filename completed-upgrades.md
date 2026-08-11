@@ -59,7 +59,7 @@ When an item from local-only `future-upgrades.md` is implemented, preserve its u
   - Kept live YouTube tests opt-in and excluded from normal CI.
 - Affected areas: Browser, collection, planning, services, test fixtures, CI, README, assessment, and changelog.
 - Verification:
-  - The non-live suite passes with 70 tests and 77.54% coverage against a 75% floor.
+  - The non-live suite passes with 72 tests and 77.62% coverage against a 75% floor.
   - Strict mypy and Ruff pass.
   - No real account is required by CI.
 

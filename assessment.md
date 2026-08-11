@@ -27,7 +27,7 @@ The product now discovers every saved playlist shown by YouTube and can inventor
 
 The largest remaining gap is account-specific reconciliation. A current read-only Liked Videos crawl collected 3,053 visible entries against a 3,142-video header that reported unavailable videos hidden. A complete saved-library read-only run discovered 85 playlists, observed 4,644 memberships and 3,497 unique videos, and isolated 19 playlist count mismatches. YouTube also intermittently returned only four playlist cards with no continuation. An exact expected-count guard now prevents that partial result from entering a full write, and a live write rehearsal proved it stopped before playlist processing. A repeatable full local import and one explicitly approved disposable-playlist add remain incomplete. Localization, experiments, private playlists, transcript availability, and security prompts remain external risks.
 
-The local quality baseline is production-grade for this single-user tool. Ruff, strict mypy, 70 non-live tests, a 75% coverage floor, Bandit, frozen dependency auditing, migration round trips, CLI tests, Streamlit smoke tests, and tracked-private-file checks pass. Mocked tests cover the critical browser and recovery branches. Live YouTube behavior still requires controlled operator validation because it cannot be proven by CI.
+The local quality baseline is production-grade for this single-user tool. Ruff, strict mypy, 72 non-live tests, a 75% coverage floor, Bandit, frozen dependency auditing, migration round trips, CLI tests, Streamlit smoke tests, and tracked-private-file checks pass. Mocked tests cover the critical browser and recovery branches. Live YouTube behavior still requires controlled operator validation because it cannot be proven by CI.
 
 Upgrade tracking now has a permanent tracked completion ledger and a local-only future backlog. The local backlog contains actionable ideas derived from this assessment. When an item ships, its stable ID and actual verification evidence move to `completed-upgrades.md`; it must not remain in both ledgers.
 
@@ -41,7 +41,7 @@ The following checks passed on Windows with Python 3.12.13:
 | Ruff lint | Passed |
 | Ruff format check | Passed |
 | Strict mypy | Passed across 62 source files |
-| Pytest | 70 passed, live YouTube tests excluded; 77.54% coverage against a 75% floor |
+| Pytest | 72 passed, live YouTube tests excluded; 77.62% coverage against a 75% floor |
 | Security lint | Bandit passed across `src` |
 | Dependency audit | Frozen fully locked graph reports no known vulnerabilities |
 | Alembic migrations | Upgrade and downgrade passed against a temporary SQLite database; `YKM_DATABASE_URL` targeting has regression coverage |
@@ -108,7 +108,7 @@ One area to watch is orchestration concentration in `cli.py`. As enrichment, ret
 | Reuse authenticated browser session | Complete for reads | Normal Chrome login is confirmed. Sync starts the same branded browser and profile, attaches through loopback-only CDP, and completed repeated authenticated read-only crawls. Playlist-write reuse remains untested. |
 | Store data in SQLite | Complete | Normalized video, playlist, membership, classification, and action models plus Alembic migrations are present. |
 | Deterministic categorization | Complete | Priority-ordered keyword, regex, channel, and multi-category rules are implemented. |
-| Optional AI categorization | Complete baseline | Providers are disabled by default and have timeouts, bounded retries, a daily token ceiling, cost recording, and loopback restriction for local endpoints. Live provider validation is optional and private. |
+| Optional AI categorization | Complete baseline | Providers are disabled by default, preview is deterministic-only, zero disables AI calls, and write mode has timeouts, bounded retries, a persisted daily token ceiling, cost recording, and loopback restriction for local endpoints. Live provider validation is optional and private. |
 | Multiple categories per video | Complete | `video_categories` implements many-to-many assignments. |
 | Review uncertain results | Complete | Low-confidence proposals and unclassified videos are exposed for manual action in Streamlit. |
 | Add videos to playlists | Partial | ID-aware add-only automation, validation-only dialog inspection, inventory recheck, and already-present handling are implemented. A controlled live add is pending. |
@@ -143,7 +143,7 @@ Primary browser risks:
 2. Current large Liked Videos and complete saved-library crawls ran, but hidden unavailable entries, 19 playlist count mismatches, and representative boundary checks still prevent full completeness reconciliation.
 3. CAPTCHA and challenge detection is necessarily heuristic. Unknown prompts must fail closed.
 4. Transcript access varies by video, language, availability, and layout. Current extraction is best-effort.
-5. Playlist matching prefers configured IDs and falls back to one exact unambiguous name. YouTube dialogs that expose neither reliable IDs nor full names fail closed.
+5. Playlist matching requires an exposed exact ID when one is configured. Name-only matching is allowed only without a configured ID and requires one exact unambiguous name. Missing IDs, mismatches, and ambiguous names fail closed.
 6. There is no saved diagnostic snapshot workflow for selector failures. Any future capture must be sanitized before it can enter Git.
 7. Account-wide crawling is sequential and can take substantial time. Progress, cooperative cancellation, durable run state, and a single-writer lock reduce but do not remove that cost.
 8. Playlist cards with missing, localized, or experimental metadata may be discovered without a reliable displayed count. The crawler must prefer actual collected membership over an inferred count.
@@ -193,7 +193,7 @@ Remaining controls to add before broader use:
 
 ## Test assessment
 
-The current 70-test suite verifies pure logic, persistence, playlist and membership upserts, complete versus incomplete deactivation, expected library-count enforcement, interrupted run recovery, optimization, planning idempotency and inventory suppression, review rejection, transcript retry state, database recovery, locks, CLI boundaries, Streamlit startup, migrations, environment-targeted Alembic execution, scrolling, URL normalization, hydration retry, continuation discovery, recommendation exclusion, fail-closed security handling, playlist dialog resolution, and browser process boundaries. Coverage is 77.54% against a 75% floor.
+The current 72-test suite verifies pure logic, persistence, playlist and membership upserts, complete versus incomplete deactivation, expected library-count enforcement, interrupted run recovery, optimization, planning idempotency and inventory suppression, review rejection, transcript retry state, database recovery, locks, CLI boundaries, Streamlit startup, migrations, environment-targeted Alembic execution, AI preview and zero-budget enforcement, scrolling, URL normalization, hydration retry, continuation discovery, recommendation exclusion, fail-closed security handling, playlist dialog resolution, and browser process boundaries. Coverage is 77.62% against a 75% floor.
 
 Important remaining tests:
 
@@ -214,7 +214,7 @@ Important remaining tests:
 | Review UI | 4/5 | Required decisions, rejection recovery, progress, and library optimization are available. Bulk review remains future work. |
 | Search | 3/5 | Good basic local search. FTS and semantic indexing remain. |
 | Privacy and safety | 5/5 | Strong defaults, exclusions, lock discipline, private-file CI, counts-only inventory, and verified private backups are present. |
-| Automated tests | 5/5 | 70 tests pass with 77.54% coverage, strict typing, security lint, dependency audit, migration checks, and mocked critical browser paths. |
+| Automated tests | 5/5 | 72 tests pass with 77.62% coverage, strict typing, security lint, dependency audit, migration checks, and mocked critical browser paths. |
 | Documentation | 5/5 | Detailed setup, first-run, routine use, configuration, CLI, UI, safety, troubleshooting, development, changelog, and assessment guidance are present. |
 | Overall production readiness | 4/5 | Production-candidate code. Playlist mismatches, a repeatable full local import, representative Liked Videos reconciliation, and one explicitly approved disposable-playlist add are mandatory before 5/5. |
 

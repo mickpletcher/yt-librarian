@@ -112,3 +112,53 @@ def test_daily_token_limit_disables_more_ai_calls(db_session: Session) -> None:
 
     assert observed == [False]
     assert video.classification_status == ProcessingStatus.REVIEW
+
+
+def test_zero_daily_token_limit_disables_ai_calls(db_session: Session) -> None:
+    _pending_video(db_session, "disabled-budget-video")
+    db_session.commit()
+    observed: list[bool] = []
+
+    class Engine:
+        def classify(self, *_: object, allow_ai: bool = True) -> ClassificationOutcome:
+            observed.append(allow_ai)
+            return ClassificationOutcome(
+                decisions=[],
+                provider="none",
+                input_hash="1" * 64,
+                completed_at=datetime.now(UTC),
+            )
+
+    ClassificationService(
+        Settings(ai_daily_token_limit=0),
+        db_session,
+        Engine(),  # type: ignore[arg-type]
+    ).classify_pending(write=True)
+
+    assert observed == [False]
+
+
+def test_preview_classification_never_calls_ai(db_session: Session) -> None:
+    video = _pending_video(db_session, "preview-video")
+    db_session.commit()
+    observed: list[bool] = []
+
+    class Engine:
+        def classify(self, *_: object, allow_ai: bool = True) -> ClassificationOutcome:
+            observed.append(allow_ai)
+            return ClassificationOutcome(
+                decisions=[],
+                provider="none",
+                input_hash="2" * 64,
+                completed_at=datetime.now(UTC),
+            )
+
+    ClassificationService(
+        Settings(ai_daily_token_limit=100),
+        db_session,
+        Engine(),  # type: ignore[arg-type]
+    ).classify_pending(write=False)
+
+    assert observed == [False]
+    assert video.classification_status == ProcessingStatus.PENDING
+    assert db_session.scalar(select(ClassificationRun)) is None
